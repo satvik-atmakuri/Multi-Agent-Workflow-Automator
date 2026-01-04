@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database with PgVector extension
+  postgres:
+    image: ankane/pgvector:latest  # PostgreSQL with vector extension pre-installed
+    container_name: workflow_postgres
+    environment:
+      POSTGRES_USER: workflow_user
+      POSTGRES_PASSWORD: workflow_pass
+      POSTGRES_DB: workflow_db
+    ports:
+      - "5432:5432"  # Expose PostgreSQL on localhost:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  # Persist data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql  # Initialize DB schema
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workflow_user -d workflow_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # FastAPI Application
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: workflow_backend
+    environment:
+      # Database connection
+      DATABASE_URL: postgresql://workflow_user:workflow_pass@postgres:5432/workflow_db
+      
+      # Python Optimization
+      PYTHONUNBUFFERED: 1
+      
+      # LLM API Keys (will be loaded from .env file)
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      
+      # Application settings
+      APP_ENV: development
+      LOG_LEVEL: info
+      
+      # CORS settings (for React frontend)
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+    ports:
+      - "8000:8000"  # Expose FastAPI on localhost:8000
+    volumes:
+      - ./backend:/app  # Mount entire backend code for hot-reload and alembic
+    depends_on:
+      postgres:
+        condition: service_healthy  # Wait for DB to be ready
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Named volumes for data persistence
+volumes:
+  postgres_data:
+    driver: local

@@ -1,0 +1,43 @@
+# Core Framework
+fastapi==0.111.0
+uvicorn[standard]==0.27.0
+pydantic==2.7.4
+pydantic-settings==2.4.0
+
+# LangChain & LangGraph
+langchain==0.3.0
+langchain-openai==0.2.0
+langgraph==0.2.28
+langchain-community==0.3.0
+
+# Database
+psycopg2-binary==2.9.9
+asyncpg==0.29.0
+psycopg-pool
+psycopg[binary]
+sqlalchemy==2.0.25
+alembic==1.13.1
+pgvector==0.2.4
+
+# LangGraph Checkpointing
+langgraph-checkpoint-postgres==1.0.0
+
+# API & Tools
+duckduckgo-search>=6.4.0
+httpx==0.26.0
+python-multipart==0.0.7
+python-dotenv==1.0.0
+
+# Server-Sent Events
+sse-starlette==1.8.2
+
+# Utilities
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+tenacity==8.2.3
+
+# Development
+pytest==7.4.4
+pytest-asyncio==0.23.3
+black==24.1.1
+ruff==0.1.14
