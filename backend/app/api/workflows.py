@@ -4,7 +4,7 @@ import uuid
 import logging
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import select, update, delete
 
 from app.schemas import (
     WorkflowRequest, 
@@ -22,64 +22,136 @@ from app.services.caching import SemanticCache
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+# async def run_workflow_background(app, workflow_id: str, input_data: Dict[str, Any], config: Dict[str, Any], db: AsyncSession):
+#     """
+#     Helper to run the workflow in the background.
+#     """
+#     logger.info(f"▶️ Starting background workflow execution for {workflow_id}")
+#     try:
+#         # Check if workflow exists in state
+#         if not hasattr(app.state, "workflow") or app.state.workflow is None:
+#             logger.error("❌ Workflow graph not initialized")
+#             return
+
+#         # Fetch User Preferences
+#         stmt = select(UserPreference)
+#         result = await db.execute(stmt)
+#         prefs = {row.key: row.value for row in result.scalars().all()}
+        
+#         # Inject preferences into input
+#         if prefs:
+#             input_data["user_preferences"] = prefs
+#             logger.info(f"🧠 Injected {len(prefs)} user preferences")
+
+#         # Invoke the graph
+#         await app.state.workflow.ainvoke(input_data, config=config)
+        
+#         # Update completion status in DB (Optional, LangGraph persistence handles state, but we want our table updated)
+#         # We can't easily do this here without a reliable callback or checking state after invoke returns (it returns state)
+#         # Actually ainvoke returns the final state!
+#         final_state = await app.state.workflow.ainvoke(input_data, config=config)
+        
+#         # Capture Final Output in Chat History
+#         # This ensures it appears chronologically after user feedback
+#         if final_state.get("status") == "completed" and final_state.get("final_output"):
+#              current_history = final_state.get("chat_history", [])
+             
+#              # Check if we already added it (to avoid duplicates on retries)
+#              # Simple check: is the last message identical to final_output?
+#              is_duplicate = False
+#              if current_history:
+#                  last_msg = current_history[-1]
+#                  if last_msg.get("role") == "assistant" and last_msg.get("content") == str(final_state.get("final_output")):
+#                      is_duplicate = True
+                     
+#              if not is_duplicate:
+#                  # Format if it's a dict
+#                  content = final_state.get("final_output")
+#                  if isinstance(content, dict):
+#                      # Extract the actual value if possible
+#                      if "response" in content:
+#                          content = content["response"]
+#                      elif "summary" in content:
+#                          content = content["summary"]
+#                      else:
+#                          content = str(content) # Fallback to stringified dict
+                     
+#                  current_history.append({"role": "assistant", "content": content})
+#                  final_state["chat_history"] = current_history
+
+#         # Update Workflow table
+#         await db.execute(
+#             update(Workflow)
+#             .where(Workflow.id == uuid.UUID(workflow_id))
+#             .values(
+#                 status=final_state.get("status", "completed"),
+#                 completed_at=datetime.utcnow() if final_state.get("status") == "completed" else None,
+#                 final_output=final_state.get("final_output"),
+#                 state=final_state
+#             )
+#         )
+#         await db.commit()
+        
+#         logger.info(f"✅ Background workflow execution finished for {workflow_id}")
+        
+#     except Exception as e:
+#         logger.error(f"❌ Error in background workflow {workflow_id}: {e}")
+#         # Mark as failed in DB
+#         try:
+#              await db.execute(
+#                 update(Workflow)
+#                 .where(Workflow.id == uuid.UUID(workflow_id))
+#                 .values(status="failed")
+#             )
+#              await db.commit()
+#         except:
+#             pass
 async def run_workflow_background(app, workflow_id: str, input_data: Dict[str, Any], config: Dict[str, Any], db: AsyncSession):
     """
     Helper to run the workflow in the background.
     """
     logger.info(f"▶️ Starting background workflow execution for {workflow_id}")
     try:
-        # Check if workflow exists in state
         if not hasattr(app.state, "workflow") or app.state.workflow is None:
             logger.error("❌ Workflow graph not initialized")
             return
 
-        # Fetch User Preferences
+        # Fetch user preferences
         stmt = select(UserPreference)
         result = await db.execute(stmt)
         prefs = {row.key: row.value for row in result.scalars().all()}
-        
-        # Inject preferences into input
         if prefs:
             input_data["user_preferences"] = prefs
             logger.info(f"🧠 Injected {len(prefs)} user preferences")
 
-        # Invoke the graph
-        await app.state.workflow.ainvoke(input_data, config=config)
-        
-        # Update completion status in DB (Optional, LangGraph persistence handles state, but we want our table updated)
-        # We can't easily do this here without a reliable callback or checking state after invoke returns (it returns state)
-        # Actually ainvoke returns the final state!
+        # ✅ Invoke ONCE
         final_state = await app.state.workflow.ainvoke(input_data, config=config)
-        
-        # Capture Final Output in Chat History
-        # This ensures it appears chronologically after user feedback
-        if final_state.get("status") == "completed" and final_state.get("final_output"):
-             current_history = final_state.get("chat_history", [])
-             
-             # Check if we already added it (to avoid duplicates on retries)
-             # Simple check: is the last message identical to final_output?
-             is_duplicate = False
-             if current_history:
-                 last_msg = current_history[-1]
-                 if last_msg.get("role") == "assistant" and last_msg.get("content") == str(final_state.get("final_output")):
-                     is_duplicate = True
-                     
-             if not is_duplicate:
-                 # Format if it's a dict
-                 content = final_state.get("final_output")
-                 if isinstance(content, dict):
-                     # Extract the actual value if possible
-                     if "response" in content:
-                         content = content["response"]
-                     elif "summary" in content:
-                         content = content["summary"]
-                     else:
-                         content = str(content) # Fallback to stringified dict
-                     
-                 current_history.append({"role": "assistant", "content": content})
-                 final_state["chat_history"] = current_history
 
-        # Update Workflow table
+        # Append assistant response to chat_history if completed
+        if final_state.get("status") == "completed" and final_state.get("final_output"):
+            current_history = final_state.get("chat_history", [])
+
+            # avoid duplicates
+            content = final_state.get("final_output")
+            if isinstance(content, dict):
+                if "response" in content:
+                    content = content["response"]
+                elif "summary" in content:
+                    content = content["summary"]
+                else:
+                    content = str(content)
+
+            is_duplicate = False
+            if current_history:
+                last_msg = current_history[-1]
+                if last_msg.get("role") == "assistant" and last_msg.get("content") == str(content):
+                    is_duplicate = True
+
+            if not is_duplicate:
+                current_history.append({"role": "assistant", "content": str(content)})
+                final_state["chat_history"] = current_history
+
+        # Update DB
         await db.execute(
             update(Workflow)
             .where(Workflow.id == uuid.UUID(workflow_id))
@@ -91,21 +163,21 @@ async def run_workflow_background(app, workflow_id: str, input_data: Dict[str, A
             )
         )
         await db.commit()
-        
+
         logger.info(f"✅ Background workflow execution finished for {workflow_id}")
-        
+
     except Exception as e:
         logger.error(f"❌ Error in background workflow {workflow_id}: {e}")
-        # Mark as failed in DB
         try:
-             await db.execute(
+            await db.execute(
                 update(Workflow)
                 .where(Workflow.id == uuid.UUID(workflow_id))
                 .values(status="failed")
             )
-             await db.commit()
+            await db.commit()
         except:
             pass
+
 
 @router.get("/", response_model=List[WorkflowStatusResponse])
 async def list_workflows(db: AsyncSession = Depends(get_db)):
@@ -277,48 +349,33 @@ async def submit_feedback(
     req: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Submit feedback/answers to clarification questions.
-    """
     logger.info(f"POST /feedback called for {workflow_id}")
-    print(f"DEBUG: Feedback Payload: {feedback}") # Explicit print for debugging
+    print(f"DEBUG: Feedback Payload: {feedback}")
     config = {"configurable": {"thread_id": workflow_id}}
-    
+
     input_update = {
         "user_feedback": feedback.model_dump(),
-        "status": "planning", 
-        "planner_output": None 
+        "status": "planning",
+        "planner_output": None,
     }
-    
-    # Also append to chat history for continuity
+
     stmt = select(Workflow).where(Workflow.id == uuid.UUID(workflow_id))
     result = await db.execute(stmt)
     workflow = result.scalar_one_or_none()
-    
+
     if workflow:
         current_history = workflow.state.get("chat_history", [])
-        # Format the feedback response nicely
         response_text = feedback.responses.get("clarification", str(feedback.responses))
         current_history.append({"role": "user", "content": response_text})
-        
-        # We need to update the state in the DB immediately so polling sees it, 
-        # or rely on the background task to do it? 
-        # Background task takes `input_update` and passes it to `ainvoke`.
-        # LangGraph usually merges input into state.
-        # But `chat_history` might not be a top-level input for the planner?
-        # Let's check our Graph state schema. `chat_history` is not explicitly in `WorkflowState` TypedDict!
-        # It's treating it as metadata in `api/chat`. 
-        
-        # We should add `chat_history` to `input_update` so LangGraph persists it?
-        # Or just update it via DB here? 
-        # Since we are using `run_workflow_background`, we are passing `input_update` to `ainvoke`.
-        # If `chat_history` isn't in `WorkflowState`, `ainvoke` might ignore it or treating it access extra?
-        
-        # Let's just update the DB object's state directly here for the UI to see it immediately.
+
+        # ✅ Merge clarification into user_request so downstream agents see it
+        clarified_request = f"{workflow.user_request}\nUser clarification: {response_text}"
+        input_update["user_request"] = clarified_request
+
+        # ✅ Keep DB updated immediately for UI polling
         state = workflow.state
         state["chat_history"] = current_history
-        
-        # update the db state for immediate UI feedback
+
         await db.execute(
             update(Workflow)
             .where(Workflow.id == uuid.UUID(workflow_id))
@@ -326,12 +383,9 @@ async def submit_feedback(
         )
         await db.commit()
 
-        # CRITICAL: Also pass this updated history to LangGraph input
-        # so it gets merged into the persistent checkpoint state.
-        # Otherwise, LangGraph will overwrite our manual DB update with its old state.
+        # ✅ ALSO pass to LangGraph so its checkpoint state matches DB
         input_update["chat_history"] = current_history
-    
-    
+
     background_tasks.add_task(
         run_workflow_background_wrapper,
         req.app,
@@ -339,12 +393,13 @@ async def submit_feedback(
         input_update,
         config
     )
-    
+
     return UserFeedbackResponse(
         workflow_id=workflow_id,
         status="resumed",
         message="Feedback received, workflow resuming"
     )
+
 
 @router.post("/{workflow_id}/chat", response_model=ChatResponse)
 async def chat_with_workflow(
@@ -436,3 +491,24 @@ CONTEXT:
         response=reply,
         history=chat_history
     )
+@router.delete("/{workflow_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_workflow(
+    workflow_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Delete a workflow by ID.
+    """
+    try:
+        stmt = delete(Workflow).where(Workflow.id == uuid.UUID(workflow_id))
+        result = await db.execute(stmt)
+        await db.commit()
+        
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+            
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid workflow ID")
+    except Exception as e:
+        logger.error(f"Error deleting workflow: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

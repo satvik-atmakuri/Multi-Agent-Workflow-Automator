@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { History, Activity, CheckCircle, XCircle } from 'lucide-react';
+import { History, Activity, CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -41,6 +41,24 @@ export const Sidebar: React.FC<Props> = ({ currentWorkflowId, onSelectWorkflow }
         }
     };
 
+    const deleteWorkflow = async (e: React.MouseEvent, id: string) => {
+        e.stopPropagation(); // Prevent triggering onSelect
+        if (!confirm("Are you sure you want to delete this chat? This cannot be undone.")) return;
+
+        try {
+            await axios.delete(`http://localhost:8000/api/workflows/${id}`);
+            // Optimistic update
+            setWorkflows(prev => prev.filter(w => w.workflow_id !== id));
+            // If deleting current, reset
+            if (currentWorkflowId === id) {
+                onSelectWorkflow('');
+            }
+        } catch (error) {
+            console.error("Failed to delete workflow", error);
+            alert("Failed to delete workflow");
+        }
+    };
+
     const getStatusIcon = (status: string) => {
         switch (status) {
             case 'completed': return <CheckCircle className="w-4 h-4 text-green-500" />;
@@ -74,7 +92,7 @@ export const Sidebar: React.FC<Props> = ({ currentWorkflowId, onSelectWorkflow }
                             key={wf.workflow_id}
                             onClick={() => onSelectWorkflow(wf.workflow_id)}
                             className={clsx(
-                                "w-full text-left p-3 rounded-lg transition-all border border-transparent group",
+                                "w-full text-left p-3 rounded-lg transition-all border border-transparent group relative pr-8",
                                 currentWorkflowId === wf.workflow_id
                                     ? "bg-gray-800 border-gray-700 shadow-sm"
                                     : "hover:bg-gray-800/50"
@@ -89,6 +107,14 @@ export const Sidebar: React.FC<Props> = ({ currentWorkflowId, onSelectWorkflow }
                             <p className="text-sm text-gray-300 font-medium line-clamp-2 leading-snug group-hover:text-white">
                                 {wf.state?.user_request || "Untitled Workflow"}
                             </p>
+
+                            <div
+                                onClick={(e) => deleteWorkflow(e, wf.workflow_id)}
+                                className="absolute right-2 top-2 p-1.5 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 rounded-md transition-all cursor-pointer"
+                                title="Delete Chat"
+                            >
+                                <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                            </div>
                         </button>
                     ))
                 )}

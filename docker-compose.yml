@@ -36,6 +36,8 @@ services:
       # LLM API Keys (will be loaded from .env file)
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+
+      BRAVE_SEARCH_API_KEY: ${BRAVE_SEARCH_API_KEY}
       
       # Application settings
       APP_ENV: development
