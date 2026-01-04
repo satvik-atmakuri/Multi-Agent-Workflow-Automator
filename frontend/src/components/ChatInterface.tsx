@@ -4,6 +4,8 @@ import { Send, Bot, User } from 'lucide-react';
 import { clsx } from 'clsx';
 import ReactMarkdown from 'react-markdown';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 interface ChatMessage {
     role: 'user' | 'assistant';
     content: string;
@@ -30,14 +32,10 @@ export const ChatInterface: React.FC<Props> = ({ workflowId, initialHistory, use
 
     // Sync messages with props (Source of Truth)
     useEffect(() => {
-        const msgs: ChatMessage[] = [];
-
-        // 1. User Request
-        if (userRequest) msgs.push({ role: 'user', content: userRequest });
-
         // 3. History
         // We now rely on the backend to append the Final Output to the history chronologically.
-        const allMessages = [...msgs, ...initialHistory];
+        // We also rely on the backend to provide the user_request as the first message in history.
+        const allMessages = [...initialHistory];
 
         // 4. Clarification Questions
         // Logic removed: We now rely on the backend to persist clarification questions to 'initialHistory'.
@@ -79,7 +77,7 @@ export const ChatInterface: React.FC<Props> = ({ workflowId, initialHistory, use
                 console.log("Payload:", payload);
 
                 // Submit as Feedback
-                await axios.post(`http://localhost:8000/api/workflows/${workflowId}/feedback`, payload);
+                await axios.post(`${API_BASE_URL}/api/workflows/${workflowId}/feedback`, payload);
                 // Trigger refresh immediately
                 if (onFeedbackSubmit) onFeedbackSubmit();
 
@@ -89,7 +87,7 @@ export const ChatInterface: React.FC<Props> = ({ workflowId, initialHistory, use
 
             } else {
                 // Normal Chat
-                const res = await axios.post(`http://localhost:8000/api/workflows/${workflowId}/chat`, {
+                const res = await axios.post(`${API_BASE_URL}/api/workflows/${workflowId}/chat`, {
                     message: content
                 });
                 setMessages(res.data.history);

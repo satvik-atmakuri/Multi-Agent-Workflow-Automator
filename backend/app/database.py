@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from app.config import settings
 
 # Ensure connection string uses async driver
-DATABASE_URL = settings.database_url
+DATABASE_URL = settings.DATABASE_URL
 if "postgresql+asyncpg" not in DATABASE_URL:
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
 

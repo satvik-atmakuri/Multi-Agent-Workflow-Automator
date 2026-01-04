@@ -57,8 +57,19 @@ def validator_node(state: WorkflowState) -> Dict[str, Any]:
     freshness_req = state.get("freshness_requirements", {}) or {}
     requires_freshness = bool(freshness_req.get("required", False))
 
+    freshness_req = state.get("freshness_requirements", {}) or {}
+    requires_freshness = bool(freshness_req.get("required", False))
+
+    # Fallback if planning stage didn't run or didn't set it (e.g. legacy state)
     if not freshness_req:
         requires_freshness = any(k in user_request for k in FRESHNESS_KEYWORDS)
+
+    # 1. Enforce Structure (Robustness)
+    if final_output and isinstance(final_output, dict):
+        if "confidence" not in final_output:
+            final_output["confidence"] = "Medium" # Default
+        if "citations" not in final_output:
+            final_output["citations"] = []
 
     sources = researcher_output.get("sources", []) if isinstance(researcher_output, dict) else []
     if not isinstance(sources, list):

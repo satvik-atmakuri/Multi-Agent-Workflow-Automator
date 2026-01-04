@@ -106,3 +106,21 @@ class UserPreference(Base):
         server_default=func.now(), 
         onupdate=func.now()
     )
+
+
+class SearchCache(Base):
+    __tablename__ = "search_cache"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    query = Column(Text, nullable=False, index=True) # Index for fast lookup
+    provider = Column(String(50), nullable=False)
+    
+    results = Column(JSONB, nullable=False)
+    
+    created_at = Column(
+        DateTime(timezone=True), 
+        server_default=func.now()
+    )
+    
+    # Optional TTL support
+    expires_at = Column(DateTime(timezone=True), nullable=True)

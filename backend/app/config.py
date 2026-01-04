@@ -1,46 +1,34 @@
-"""
-Configuration management using Pydantic Settings.
-Loads environment variables and provides type-safe access to configuration.
-"""
+import os
 from pydantic_settings import BaseSettings
-from typing import List
-
 
 class Settings(BaseSettings):
-    """Application settings loaded from environment variables"""
+    # Core
+    OPENAI_API_KEY: str
+    DATABASE_URL: str
+    APP_ENV: str = "development"
+    LOG_LEVEL: str = "INFO"
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8000"
     
-    # Application
-    app_env: str = "development"
-    log_level: str = "info"
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
     
-    # Database
-    database_url: str
+    # Search Configuration
+    SEARCH_PROVIDER: str = "brave"  # brave, ddg, mock
+    BRAVE_SEARCH_API_KEY: str = ""
+    ENABLE_WEB_SEARCH: bool = True
     
-    # LLM API Keys
-    openai_api_key: str
-    anthropic_api_key: str = ""
+    # Model Configuration
+    # Model Configuration
+    DEFAULT_MODEL: str = "gpt-4o-mini"
+    MAX_TOKENS: int = 4096
     
-    # CORS
-    cors_origins: str = "http://localhost:3000,http://localhost:5173"
-    
-    # LLM Settings
-    default_model: str = "gpt-4o-mini"  # Cost-effective default
-    temperature: float = 0.7
-    max_tokens: int = 2000
-    
-    # Workflow Settings
-    max_retries: int = 3
-    max_clarification_questions: int = 5
+    # Caching
+    CACHE_ENABLED: bool = True
+    CACHE_THRESHOLD: float = 0.95
     
     class Config:
         env_file = ".env"
-        case_sensitive = False
-    
-    @property
-    def cors_origins_list(self) -> List[str]:
-        """Parse CORS origins string into list"""
-        return [origin.strip() for origin in self.cors_origins.split(",")]
+        extra = "ignore"
 
-
-# Global settings instance
 settings = Settings()

@@ -14,15 +14,15 @@ class BaseAgent(ABC):
     Abstract base class for all agents.
     """
     
-    def __init__(self, model_name: str = settings.default_model, temperature: float = 0):
+    def __init__(self, model_name: str = settings.DEFAULT_MODEL, temperature: float = 0):
         """
         Initialize the agent with an LLM client.
         """
         self.llm = ChatOpenAI(
             model=model_name,
             temperature=temperature,
-            api_key=settings.openai_api_key,
-            max_tokens=settings.max_tokens
+            api_key=settings.OPENAI_API_KEY,
+            max_tokens=settings.MAX_TOKENS
         )
         self.name = self.__class__.__name__
 

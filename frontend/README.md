@@ -1,73 +1,51 @@
-# React + TypeScript + Vite
+# Frontend - Multi-Agent Workflow Automator
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A generic chat interface built with **React 19**, **Vite**, and **Tailwind CSS**. It communicates with the FastAPI backend via REST.
 
-Currently, two official plugins are available:
+## ⚡ Quick Start
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+1.  **Install**:
+    ```bash
+    cd frontend
+    npm install
+    ```
 
-## React Compiler
+2.  **Dev Server**:
+    ```bash
+    npm run dev
+    ```
+    Opens at http://localhost:5173.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+3.  **Build**:
+    ```bash
+    npm run build
+    npm run preview
+    ```
 
-## Expanding the ESLint configuration
+## 🌍 Environment Variables
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+| Variable | Description | Default |
+| :--- | :--- | :--- |
+| `VITE_API_BASE_URL` | Backend URL | `http://localhost:8000` |
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+To change this, create a `.env` file in `frontend/`:
+```ini
+VITE_API_BASE_URL=http://production-api.com
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 🔄 Polling & State Logic
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+The frontend does not use WebSockets. It uses **Smart Polling** to simulate real-time updates:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+1.  **Creation**: User sends request -> Backend returns `workflow_id`.
+2.  **Polling**: The `StatusDashboard` component calls `GET /api/workflows/{id}` every 2 seconds.
+3.  **Updates**:
+    -   It checks `status` (`running`, `completed`, `failed`).
+    -   It renders the current node (e.g., "Researching...") based on the `last_active_node` field.
+4.  **Completion**: When `status === 'completed'`, it stops polling and renders `final_output`.
+
+## 📁 Key Components
+
+-   `Sidebar.tsx`: History management (Delete Logic included).
+-   `ChatInterface.tsx`: Main chat bubble rendering.
+-   `StatusDashboard.tsx`: Progress bar and agent activity visualizer.

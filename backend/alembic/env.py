@@ -41,12 +41,18 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = settings.database_url
+    url = settings.DATABASE_URL
+    def include_object(object, name, type_, reflected, compare_to):
+        if type_ == "table" and name in ["checkpoints", "checkpoint_writes", "checkpoint_blobs", "checkpoint_migrations"]:
+            return False
+        return True
+
     context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -62,7 +68,7 @@ def run_migrations_online() -> None:
     """
     # Override the sqlalchemy.url in configuration with our settings
     configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = settings.database_url
+    configuration["sqlalchemy.url"] = settings.DATABASE_URL
     
     connectable = engine_from_config(
         configuration,
@@ -70,9 +76,16 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
 
+    def include_object(object, name, type_, reflected, compare_to):
+        if type_ == "table" and name in ["checkpoints", "checkpoint_writes", "checkpoint_blobs", "checkpoint_migrations"]:
+            return False
+        return True
+
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection, 
+            target_metadata=target_metadata,
+            include_object=include_object
         )
 
         with context.begin_transaction():

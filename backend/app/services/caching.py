@@ -7,7 +7,7 @@ from app.config import settings
 class SemanticCache:
     def __init__(self, db_session: AsyncSession):
         self.db = db_session
-        self.client = openai.AsyncOpenAI(api_key=settings.openai_api_key)
+        self.client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
     async def get_embedding(self, text: str):
         response = await self.client.embeddings.create(

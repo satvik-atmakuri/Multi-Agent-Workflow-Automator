@@ -38,6 +38,11 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
 
       BRAVE_SEARCH_API_KEY: ${BRAVE_SEARCH_API_KEY}
+      SEARCH_PROVIDER: ${SEARCH_PROVIDER:-brave}
+      ENABLE_WEB_SEARCH: ${ENABLE_WEB_SEARCH:-true}
+      DEFAULT_MODEL: ${DEFAULT_MODEL:-gpt-4o-mini}
+      CACHE_ENABLED: ${CACHE_ENABLED:-true}
+      CACHE_THRESHOLD: ${CACHE_THRESHOLD:-0.95}
       
       # Application settings
       APP_ENV: development

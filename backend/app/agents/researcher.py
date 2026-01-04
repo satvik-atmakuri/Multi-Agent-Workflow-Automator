@@ -15,10 +15,12 @@ import re
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.exceptions import OutputParserException
+from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 
 from app.agents.base import BaseAgent
 from app.schemas import WorkflowState
+from app.config import settings
 
 # Optional fallback (keeps repo runnable even without Brave key)
 try:
@@ -27,6 +29,7 @@ except Exception:  # pragma: no cover
     DuckDuckGoSearchRun = None  # type: ignore
 
 from app.services.brave_search import brave_web_search, brave_news_search, BraveSearchError
+from app.services.search_cache import get_cached_search, set_cached_search
 
 
 class ResearchLLMOutput(BaseModel):
@@ -131,7 +134,7 @@ Search Results:
 
         return effective.strip()
 
-    def invoke(self, state: WorkflowState) -> dict:
+    async def invoke(self, state: WorkflowState, config: RunnableConfig = None) -> dict:
         # ✅ Use effective task (includes clarifications)
         effective_task = self._build_effective_task(state)
 
@@ -156,17 +159,61 @@ Search Results:
         results: List[Dict[str, Any]] = []
         used_tool: str = "brave_web"
 
-        try:
-            if self._needs_news_search(state):
-                used_tool = "brave_news"
-                results = brave_news_search(search_query, count=5)
-            else:
-                used_tool = "brave_web"
-                results = brave_web_search(search_query, count=5)
-        except BraveSearchError as e:
-            print(f"[{self.name}] Brave not configured: {e}")
-        except Exception as e:
-            print(f"[{self.name}] Brave search error: {e}")
+        if not settings.ENABLE_WEB_SEARCH:
+             return {
+                "researcher_output": {
+                    "summary": "Web search is disabled by configuration.",
+                    "sources": [],
+                    "tool": "disabled",
+                    "query": search_query,
+                }
+            }
+        
+        provider = settings.SEARCH_PROVIDER.lower()
+        
+        # 🟢 CACHE CHECK 🟢
+        db_session = config.get("configurable", {}).get("db") if config else None
+        if db_session:
+            cached = await get_cached_search(db_session, search_query, provider)
+            if cached:
+                print(f"[{self.name}] ⚡ Cache Hit for query: {search_query}")
+                results = cached
+                used_tool = f"{provider}_cache"
+
+        if not results:
+            try:
+                if provider == "brave":
+                    if self._needs_news_search(state):
+                        used_tool = "brave_news"
+                        results = brave_news_search(search_query, count=5)
+                    else:
+                        used_tool = "brave_web"
+                        results = brave_web_search(search_query, count=5)
+                elif provider == "ddg":
+                     raise Exception("Forcing DDG fallback")
+                elif provider == "mock":
+                     used_tool = "mock"
+                     results = [
+                        {"title": "Mock Result 1", "url": "http://mock.com/1", "snippet": f"Mock data for {search_query}"},
+                        {"title": "Mock Result 2", "url": "http://mock.com/2", "snippet": "Another mock result"}
+                     ]
+                
+                # 🟢 CACHE SET 🟢
+                if db_session and results:
+                     # Since simple dict implies sync in invoke, but invoke is async now?
+                     # Wait, `invoke` was synchronous in base.py? No, base has `invoke`? 
+                     # BaseAgent usually has `invoke` but here we override.
+                     # The method signature I changed to `async def invoke` in chunk above.
+                     # Verify if parent usage expects async. 
+                     # Node definition in graph.py calls `researcher.invoke`. 
+                     # If graph uses `add_node("name", async_func)`, it works.
+                     # My change to `async def invoke` is correct for await.
+                     await set_cached_search(db_session, search_query, provider, results)
+
+            except BraveSearchError as e:
+                print(f"[{self.name}] Brave not configured: {e}")
+            except Exception as e:
+                print(f"[{self.name}] Search error ({provider}): {e}")
 
         # Optional fallback
         if not results and self.ddg_fallback is not None:

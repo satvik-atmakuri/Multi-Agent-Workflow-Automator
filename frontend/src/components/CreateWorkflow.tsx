@@ -3,6 +3,8 @@ import axios from 'axios';
 import { Send, Loader2 } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 interface CreateWorkflowProps {
     onWorkflowCreated: (id: string) => void;
 }
@@ -20,7 +22,7 @@ export function CreateWorkflow({ onWorkflowCreated }: CreateWorkflowProps) {
         setError(null);
 
         try {
-            const response = await axios.post('http://localhost:8000/api/workflows/', {
+            const response = await axios.post(`${API_BASE_URL}/api/workflows/`, {
                 text: request
             });
             onWorkflowCreated(response.data.workflow_id);

@@ -5,6 +5,8 @@ import { clsx } from 'clsx';
 
 import { ChatInterface } from './ChatInterface';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 interface WorkflowState {
     workflow_id: string;
     status: 'planning' | 'awaiting_clarification' | 'researching' | 'synthesizing' | 'validating' | 'completed' | 'failed' | 'started';
@@ -29,7 +31,7 @@ export function StatusDashboard({ workflowId }: StatusDashboardProps) {
 
     const pollStatus = async () => {
         try {
-            const response = await axios.get(`http://localhost:8000/api/workflows/${workflowId}`);
+            const response = await axios.get(`${API_BASE_URL}/api/workflows/${workflowId}`);
             setData(response.data);
             setError(null);
         } catch (err) {

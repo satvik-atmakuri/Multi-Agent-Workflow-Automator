@@ -3,6 +3,7 @@ Planner Agent: Break down the user's request into a structured plan.
 """
 from typing import Dict, Any, List
 from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.exceptions import OutputParserException
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
@@ -73,6 +74,7 @@ FRESHNESS DETECTION RULES:
   - "Best tablet in current market" -> True
   - "News about X" -> True
   - "Current price of Bitcoin" -> True
+  - "Events/Openings/Availability" -> True
 - Set `freshness_required` = **False** for everything else:
   - "Popular tablets for students" -> False (General recommendations are fine)
   - "Explain how LLMs work" -> False
@@ -193,6 +195,30 @@ User Feedback (Previous Clarifications):
                 
             return updates
             
+            return updates
+            
+        except OutputParserException:
+            print(f"[{self.name}] ⚠️ JSON Parsing failed. Falling back to default plan.")
+            # Fallback plan
+            default_plan = {
+                "goal": state['user_request'],
+                "steps": [
+                    {"step_id": 1, "description": f"Research: {state['user_request']}", "agent": "Researcher", "required_info": "Search results"},
+                    {"step_id": 2, "description": "Synthesize answer", "agent": "Synthesizer", "required_info": "Summary"}
+                ],
+                "clarification_needed": False,
+                "clarification_questions": [],
+                "freshness_required": True, # Assume true for safety
+                "freshness_reasoning": "Parsing failed, defaulting to fresh search"
+            }
+            return {
+                "status": "researching",
+                "planner_output": default_plan,
+                "freshness_requirements": {
+                    "required": True,
+                    "reasoning": "Fallback"
+                }
+            }
         except Exception as e:
             print(f"[{self.name}] Error during planning: {e}")
             return {"status": "failed", "validation_errors": [{"agent": self.name, "error": str(e)}]}

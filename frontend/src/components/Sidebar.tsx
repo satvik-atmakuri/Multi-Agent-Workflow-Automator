@@ -4,6 +4,8 @@ import { History, Activity, CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
 import { formatDistanceToNow } from 'date-fns';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 interface WorkflowSummary {
     workflow_id: string;
     status: string;
@@ -32,7 +34,7 @@ export const Sidebar: React.FC<Props> = ({ currentWorkflowId, onSelectWorkflow }
 
     const fetchHistory = async () => {
         try {
-            const res = await axios.get('http://localhost:8000/api/workflows/');
+            const res = await axios.get(`${API_BASE_URL}/api/workflows/`);
             setWorkflows(res.data);
             setLoading(false);
         } catch (error) {
@@ -46,7 +48,7 @@ export const Sidebar: React.FC<Props> = ({ currentWorkflowId, onSelectWorkflow }
         if (!confirm("Are you sure you want to delete this chat? This cannot be undone.")) return;
 
         try {
-            await axios.delete(`http://localhost:8000/api/workflows/${id}`);
+            await axios.delete(`${API_BASE_URL}/api/workflows/${id}`);
             // Optimistic update
             setWorkflows(prev => prev.filter(w => w.workflow_id !== id));
             // If deleting current, reset

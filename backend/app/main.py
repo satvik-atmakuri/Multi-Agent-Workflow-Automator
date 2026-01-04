@@ -14,7 +14,7 @@ from app.orchestrator.graph import build_graph
 
 # Configure logging
 logging.basicConfig(
-    level=settings.log_level.upper(),
+    level=settings.LOG_LEVEL.upper(),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
@@ -25,13 +25,13 @@ async def lifespan(app: FastAPI):
     Manage application lifespan: setup/teardown of resources.
     """
     logger.info("🚀 Starting Multi-Agent Workflow Automator")
-    logger.info(f"Environment: {settings.app_env}")
+    logger.info(f"Environment: {settings.APP_ENV}")
     
     # Initialize Checkpointer and Workflow
     try:
         # Use AsyncPostgresSaver context manager to handle pool creation/closure automatically
         # This is the recommended way to ensuring the pool is closed on shutdown
-        async with AsyncPostgresSaver.from_conn_string(settings.database_url) as checkpointer:
+        async with AsyncPostgresSaver.from_conn_string(settings.DATABASE_URL) as checkpointer:
             # Setup persistence tables
             await checkpointer.setup()
             
@@ -77,7 +77,7 @@ async def root():
         "status": "healthy",
         "service": "Multi-Agent Workflow Automator",
         "version": "1.0.0",
-        "environment": settings.app_env
+        "environment": settings.APP_ENV
     }
 
 @app.get("/health")

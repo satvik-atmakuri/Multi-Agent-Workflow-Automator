@@ -25,7 +25,7 @@ async def get_checkpointer() -> AsyncGenerator[AsyncPostgresSaver, None]:
     # We will use the standard connection string.
     # Adjust schema if you need to use a specific schema or table names.
     
-    async with AsyncPostgresSaver.from_conn_string(settings.database_url) as checkpointer:
+    async with AsyncPostgresSaver.from_conn_string(settings.DATABASE_URL) as checkpointer:
         yield checkpointer
 
 # Alternative: Singleton pool management if we want to share the pool across requests widely

@@ -3,6 +3,8 @@ import axios from 'axios';
 import { X, Plus, Trash2, Settings } from 'lucide-react';
 import clsx from 'clsx';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 interface Preference {
     key: string;
     value: string;
@@ -27,7 +29,7 @@ export const PreferencesModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
     const fetchPreferences = async () => {
         try {
-            const res = await axios.get('http://localhost:8000/api/preferences/');
+            const res = await axios.get(`${API_BASE_URL}/api/preferences/`);
             const prefsArray = Object.entries(res.data.preferences).map(([key, value]) => ({
                 key,
                 value: value as string
@@ -42,7 +44,7 @@ export const PreferencesModal: React.FC<Props> = ({ isOpen, onClose }) => {
         if (!newKey || !newValue) return;
         setLoading(true);
         try {
-            await axios.post('http://localhost:8000/api/preferences/', {
+            await axios.post(`${API_BASE_URL}/api/preferences/`, {
                 key: newKey,
                 value: newValue
             });
@@ -58,7 +60,7 @@ export const PreferencesModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
     const handleDelete = async (key: string) => {
         try {
-            await axios.delete(`http://localhost:8000/api/preferences/${key}`);
+            await axios.delete(`${API_BASE_URL}/api/preferences/${key}`);
             await fetchPreferences();
         } catch (error) {
             console.error("Failed to delete preference", error);

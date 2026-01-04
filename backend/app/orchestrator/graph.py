@@ -24,9 +24,11 @@ def planner_node(state: WorkflowState) -> Dict[str, Any]:
     """Execute the Planner Agent."""
     return planner.invoke(state)
 
-def researcher_node(state: WorkflowState) -> Dict[str, Any]:
+from langchain_core.runnables import RunnableConfig
+
+async def researcher_node(state: WorkflowState, config: RunnableConfig) -> Dict[str, Any]:
     """Execute the Researcher Agent."""
-    return researcher.invoke(state)
+    return await researcher.invoke(state, config)
 
 def synthesizer_node(state: WorkflowState) -> Dict[str, Any]:
     """Execute the Synthesizer Agent."""
