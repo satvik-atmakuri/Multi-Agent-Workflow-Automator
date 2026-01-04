@@ -4,13 +4,24 @@ An autonomous multi-agent system that executes complex user requests through spe
 
 ## 🏗️ Architecture
 
-- **Orchestrator**: LangGraph-based workflow engine with DAG execution
-- **Agents**: Planner, Clarification, Researcher, Synthesizer, Critic
-- **State Management**: PostgreSQL with PgVector for embeddings
-- **Backend**: FastAPI with async support
-- **Frontend**: React (to be implemented)
+- **Orchestrator**: LangGraph-based workflow engine managing the state and transitions.
+- **Agents**:
+    - **Planner**: Decomposes user requests into actionable steps and detects ambiguity.
+    - **Researcher**: Performs web searches to gather real-time data (with Mock Fallback for resilience).
+    - **Synthesizer**: Aggregates plan and research data into a polished, Markdown-formatted report.
+- **State Management**: PostgreSQL with PgVector for semantic memory and embeddings.
+- **Backend**: FastAPI with async support for high-throughput agent handling.
+- **Frontend**: React (Vite + Tailwind) for an intuitive chat-like interface.
 
-## 🚀 Quick Start
+## 🚀 Key Features
+
+- **Intelligent Planning**: Break down complex queries (e.g., "Plan a trip to Tokyo") into sub-tasks.
+- **Real-Time Research**: Fetch fresh data from the web (Stock prices, News, Weather).
+- **Human-in-the-loop**: Validates ambiguity. If a request is vague ("Plan a trip"), the system pauses and asks clarifying questions before proceeding.
+- **Semantic Caching**: Reuses previous successful workflows to save time and API costs.
+- **Mock Fallback**: Robust error handling ensures the system works even if external search APIs are rate-limited.
+
+## 🛠️ Quick Start
 
 ### Prerequisites
 
@@ -20,9 +31,10 @@ An autonomous multi-agent system that executes complex user requests through spe
 
 ### Setup
 
-1. **Clone and navigate to the project:**
+1. **Clone the repository:**
    ```bash
-   cd "/Users/spartan/projects/Multi-Agent Workflow Automator"
+   git clone https://github.com/satvik-atmakuri/Multi-Agent-Workflow-Automator.git
+   cd Multi-Agent-Workflow-Automator
    ```
 
 2. **Create environment file:**
@@ -35,8 +47,8 @@ An autonomous multi-agent system that executes complex user requests through spe
    # Required
    OPENAI_API_KEY=sk-your-key-here
    
-   # Optional
-   ANTHROPIC_API_KEY=your-key-here
+   # Database (Defaults work with Docker)
+   DATABASE_URL=postgresql://workflow_user:workflow_pass@postgres:5432/workflow_db
    ```
 
 4. **Start the services:**
@@ -44,20 +56,19 @@ An autonomous multi-agent system that executes complex user requests through spe
    docker-compose up --build
    ```
 
-5. **Verify the services are running:**
-   - FastAPI: http://localhost:8000
-   - API Docs: http://localhost:8000/docs
-   - PostgreSQL: localhost:5432
+5. **Access the Application:**
+   - **Frontend UI**: http://localhost:5173
+   - **FastAPI Backend**: http://localhost:8000
+   - **API Docs**: http://localhost:8000/docs
 
-### Testing the Setup
+## 🎯 Usage
 
-```bash
-# Check API health
-curl http://localhost:8000/health
-
-# Expected response:
-# {"status":"healthy","database":"connected","llm_api":"configured"}
-```
+1. **Open the Frontend**: Go to `http://localhost:5173`.
+2. **Start a Workflow**: Type a request like *"What is the current stock price of Apple?"* or *"Plan a 3-day trip to Paris"*.
+3. **Interact**:
+   - If the request is clear, watch the agents Plan -> Research -> Synthesize.
+   - If the request is ambiguous (e.g., *"Plan a trip"*), the system will ask for clarification. Reply in the chat (e.g., *"Tokyo, $3000 budget"*).
+4. **View Results**: The final output will be displayed as a formatted Markdown report.
 
 ## 📁 Project Structure
 
@@ -65,122 +76,34 @@ curl http://localhost:8000/health
 .
 ├── backend/
 │   ├── app/
-│   │   ├── agents/          # AI agent implementations
-│   │   ├── api/             # FastAPI route handlers
-│   │   ├── orchestrator/    # LangGraph workflow
-│   │   ├── tools/           # External function tools
-│   │   ├── config.py        # Configuration management
-│   │   ├── database.py      # Database connection
-│   │   ├── models.py        # Pydantic & ORM models
-│   │   └── main.py          # FastAPI app entry point
-│   ├── requirements.txt     # Python dependencies
-│   └── Dockerfile           # Container definition
-├── frontend/                # React app (to be implemented)
+│   │   ├── agents/          # Planner, Researcher, Synthesizer logic
+│   │   ├── orchestrator/    # LangGraph workflow definition (graph.py)
+│   │   ├── api/             # FastAPI endpoints (workflows.py)
+│   │   ├── services/        # Caching and utilities
+│   │   └── models.py        # Database schema
+│   ├── evaluate_qa_suite.py # Automated verification tests
+│   └── Dockerfile
+├── frontend/                # React Application
+│   ├── src/
+│   │   ├── components/      # UI Components (ChatInterface, Dashboard)
+│   │   └── App.tsx          # Main entry point
+│   └── Dockerfile
 ├── docker-compose.yml       # Service orchestration
-├── init.sql                 # Database schema
-└── .env                     # Environment variables (create from .env.example)
+└── init.sql                 # Database initialization
 ```
 
-## 🔧 Development
+## 🧪 Testing
 
-### Running in Development Mode
-
-The Docker Compose setup includes hot-reload for both backend and frontend:
+The backend includes a comprehensive QA suite to verify agent logic.
 
 ```bash
-# Start services
-docker-compose up
+# Enter backend container
+docker exec -it workflow_backend bash
 
-# View logs
-docker-compose logs -f backend
-
-# Stop services
-docker-compose down
-
-# Rebuild after dependency changes
-docker-compose up --build
+# Run QA Suite
+python evaluate_qa_suite.py
 ```
 
-### Database Access
-
-```bash
-# Connect to PostgreSQL
-docker exec -it workflow_postgres psql -U workflow_user -d workflow_db
-
-# Run migrations (when implemented)
-docker exec -it workflow_backend alembic upgrade head
-```
-
-### Running Tests
-
-```bash
-# Inside the backend container
-docker exec -it workflow_backend pytest
-
-# With coverage
-docker exec -it workflow_backend pytest --cov=app
-```
-
-## 📚 API Documentation
-
-Once the server is running, visit:
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-
-## 🎯 Workflow Example
-
-```python
-# Example workflow execution
-POST /api/workflows
-{
-  "text": "Plan a 3-day trip to Paris for $1,500"
-}
-
-# Response
-{
-  "workflow_id": "123e4567-e89b-12d3-a456-426614174000",
-  "status": "planning"
-}
-
-# Check status
-GET /api/workflows/{workflow_id}
-
-# When status is "awaiting_clarification", submit feedback
-POST /api/workflows/{workflow_id}/feedback
-{
-  "responses": {"q1": "Direct flights preferred"},
-  "ratings": {"q1": 5},
-  "approval": "approved"
-}
-```
-
-## 🧪 Implementation Status
-
-- [x] Phase 1: Foundation Setup (Docker, FastAPI, PostgreSQL)
-- [x] Phase 2: Database & State Management
-- [/] Phase 3: Core Agent Implementation
-- [/] Phase 4: LangGraph Orchestration
-- [ ] Phase 5: FastAPI Backend Endpoints
-- [/] Phase 6: Tool Integration
-- [ ] Phase 7: React Frontend
-- [/] Phase 8: Testing & Validation
-- [ ] Phase 9: Deployment
-- [ ] Phase 10: Advanced Features
-
-## 📝 Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `OPENAI_API_KEY` | Yes | OpenAI API key for LLM access |
-| `ANTHROPIC_API_KEY` | No | Anthropic API key for Claude models |
-| `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `APP_ENV` | No | Environment (development/production) |
-| `CORS_ORIGINS` | No | Allowed CORS origins for frontend |
-
-## 🤝 Contributing
-
-This is a learning project. Feel free to experiment and extend!
-
-## 📄 License
+## 📝 License
 
 MIT License
