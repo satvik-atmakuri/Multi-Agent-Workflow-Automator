@@ -7,7 +7,7 @@ An autonomous multi-agent system that executes complex user requests through spe
 - **Orchestrator**: LangGraph-based workflow engine managing the state and transitions.
 - **Agents**:
     - **Planner**: Decomposes user requests into actionable steps and detects ambiguity.
-    - **Researcher**: Performs web searches to gather real-time data (with Mock Fallback for resilience).
+    - **Researcher**: Performs web searches using **Brave Search API** to gather real-time data (with DuckDuckGo/Mock Fallback for resilience).
     - **Synthesizer**: Aggregates plan and research data into a polished, Markdown-formatted report.
 - **State Management**: PostgreSQL with PgVector for semantic memory and embeddings.
 - **Backend**: FastAPI with async support for high-throughput agent handling.
@@ -16,7 +16,8 @@ An autonomous multi-agent system that executes complex user requests through spe
 ## 🚀 Key Features
 
 - **Intelligent Planning**: Break down complex queries (e.g., "Plan a trip to Tokyo") into sub-tasks.
-- **Real-Time Research**: Fetch fresh data from the web (Stock prices, News, Weather).
+- **Real-Time Research (Brave Search)**: Fetch fresh, high-quality data from the web using the Brave Search API.
+- **Manage History**: Delete old workflows directly from the sidebar UI.
 - **Human-in-the-loop**: Validates ambiguity. If a request is vague ("Plan a trip"), the system pauses and asks clarifying questions before proceeding.
 - **Semantic Caching**: Reuses previous successful workflows to save time and API costs.
 - **Mock Fallback**: Robust error handling ensures the system works even if external search APIs are rate-limited.
@@ -27,6 +28,7 @@ An autonomous multi-agent system that executes complex user requests through spe
 
 - Docker and Docker Compose
 - OpenAI API key (required)
+- Brave Search API key (required for best results)
 - Anthropic API key (optional)
 
 ### Setup
@@ -44,8 +46,11 @@ An autonomous multi-agent system that executes complex user requests through spe
 
 3. **Edit `.env` and add your API keys:**
    ```bash
-   # Required
+   # Required for Agents
    OPENAI_API_KEY=sk-your-key-here
+   
+   # Required for Research
+   BRAVE_SEARCH_API_KEY=your-brave-key-here
    
    # Database (Defaults work with Docker)
    DATABASE_URL=postgresql://workflow_user:workflow_pass@postgres:5432/workflow_db
@@ -69,6 +74,7 @@ An autonomous multi-agent system that executes complex user requests through spe
    - If the request is clear, watch the agents Plan -> Research -> Synthesize.
    - If the request is ambiguous (e.g., *"Plan a trip"*), the system will ask for clarification. Reply in the chat (e.g., *"Tokyo, $3000 budget"*).
 4. **View Results**: The final output will be displayed as a formatted Markdown report.
+5. **Manage**: Click the trash icon in the sidebar to delete any old chat sessions.
 
 ## 📁 Project Structure
 
@@ -76,34 +82,20 @@ An autonomous multi-agent system that executes complex user requests through spe
 .
 ├── backend/
 │   ├── app/
-│   │   ├── agents/          # Planner, Researcher, Synthesizer logic
+│   │   ├── agents/          # Planner, Researcher (Brave), Synthesizer logic
 │   │   ├── orchestrator/    # LangGraph workflow definition (graph.py)
 │   │   ├── api/             # FastAPI endpoints (workflows.py)
-│   │   ├── services/        # Caching and utilities
+│   │   ├── services/        # Brave Search & Caching utilities
 │   │   └── models.py        # Database schema
 │   ├── evaluate_qa_suite.py # Automated verification tests
 │   └── Dockerfile
 ├── frontend/                # React Application
 │   ├── src/
-│   │   ├── components/      # UI Components (ChatInterface, Dashboard)
+│   │   ├── components/      # UI Components (ChatInterface, Sidebar, etc.)
 │   │   └── App.tsx          # Main entry point
 │   └── Dockerfile
 ├── docker-compose.yml       # Service orchestration
 └── init.sql                 # Database initialization
 ```
 
-## 🧪 Testing
 
-The backend includes a comprehensive QA suite to verify agent logic.
-
-```bash
-# Enter backend container
-docker exec -it workflow_backend bash
-
-# Run QA Suite
-python evaluate_qa_suite.py
-```
-
-## 📝 License
-
-MIT License
