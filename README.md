@@ -70,11 +70,6 @@ docker exec -it workflow_backend python evaluate_qa_suite.py
 -   **[Frontend Guide](frontend/README.md)**: Component structure and polling logic.
 -   **[Troubleshooting](docs/TROUBLESHOOTING.md)**: Fixes for keys, CORS, and DB issues.
 
-## 🤝 Contributing
-
-1.  Fork the repo.
-2.  Create a feature branch.
-3.  Submit a Pull Request.
 
 ---
 *Built with LangGraph, FastAPI, and React 19.*
